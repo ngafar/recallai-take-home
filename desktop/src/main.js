@@ -281,7 +281,7 @@ function renderRecordings() {
   for (const recording of recordings) {
     const item = document.createElement("li");
     const label = document.createElement("span");
-    label.textContent = `${rowLabel(recording)} · ${recording.uploadId.slice(0, 8)}`;
+    label.textContent = recording.uploadId.slice(0, 8);
     item.append(label);
     if (recording.downloadUrl) {
       const open = document.createElement("button");
@@ -289,6 +289,11 @@ function renderRecordings() {
       open.textContent = "Open";
       open.addEventListener("click", () => openRecording(recording.downloadUrl));
       item.append(open);
+    } else {
+      const status = document.createElement("span");
+      status.className = "status";
+      status.textContent = rowLabel(recording);
+      item.append(status);
     }
     recordingsEl.append(item);
   }

@@ -56,6 +56,10 @@ h1 {
   color: #4d4d4d;
 }
 
+#recordings .status {
+  color: #4d4d4d;
+}
+
 #recordings button {
   background: transparent;
   color: #1c1c1c;
@@ -101,6 +105,10 @@ button:disabled {
 
   #recordings li {
     border-top-color: #3a3a3a;
+  }
+
+  #recordings .status {
+    color: #c8c8c2;
   }
 
   #recordings button {
