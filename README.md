@@ -77,7 +77,7 @@ If this terminal was open before Rust was installed, `cargo` will be missing unt
 source "$HOME/.cargo/env"
 ```
 
-Join a Google Meet. When the window says the meeting is open, press Start, talk for a few seconds, then press Stop. The status stays on processing until the webhook arrives. Open recording plays the file. The download URL is temporary.
+Join a Google Meet. When the window says the meeting is open, press Start, talk for a few seconds, then press Stop. The recordings list follows the webhook from uploading to ready. Open plays the file. The download URL is temporary.
 
 macOS may ask for microphone, accessibility, and screen recording. Those prompts can attach to `node` or to the `desktop` dev app. If a permission was already denied, turn it on under System Settings, Privacy & Security, then restart the app. macOS will not show the prompt again.
 

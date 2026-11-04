@@ -6,7 +6,7 @@ const RECORDINGS_URL = "http://127.0.0.1:3000/recordings";
 
 const statusEl = document.querySelector("#status");
 const meetingEl = document.querySelector("#meeting");
-const resultEl = document.querySelector("#result");
+const recordingsEl = document.querySelector("#recordings");
 const startButton = document.querySelector("#start");
 const stopButton = document.querySelector("#stop");
 
@@ -14,7 +14,8 @@ const permissions = {};
 let meeting = null;
 let phase = "starting";
 let uploadId = null;
-let downloadUrl = null;
+let recordings = [];
+let recordingsError = "";
 let message = "";
 
 startButton.addEventListener("click", () => {
@@ -85,7 +86,6 @@ function onSdk(payload) {
       break;
     case "upload-created":
       uploadId = payload.id;
-      downloadUrl = null;
       break;
     case "start-accepted":
       uploadId = payload.uploadId;
@@ -113,24 +113,59 @@ function onSdk(payload) {
 }
 
 async function refreshRecordings() {
-  if (!uploadId) {
-    return;
-  }
   try {
     const response = await fetch(RECORDINGS_URL);
     if (!response.ok) {
+      recordingsError = "The upload server did not return recordings.";
+      render();
       return;
     }
     const body = await response.json();
-    const match = (body.recordings || []).find((recording) => recording.uploadId === uploadId);
-    if (match?.downloadUrl && match.downloadUrl !== downloadUrl) {
-      downloadUrl = match.downloadUrl;
+    recordings = body.recordings || [];
+    recordingsError = "";
+    const current = recordings.find((recording) => recording.uploadId === uploadId);
+    if (current?.downloadUrl) {
       phase = "ready";
       message = "";
-      render();
+    } else if (current?.status === "failed") {
+      phase = "failed";
+      message = "";
     }
+    render();
   } catch {
-    // The upload server is not reachable yet. The status line covers that once recording has ended.
+    recordingsError = "The upload server is not running.";
+    render();
+  }
+}
+
+function recordingLabel(recording) {
+  if (recording.downloadUrl) {
+    return "Ready";
+  }
+  if (recording.status === "failed") {
+    return "Failed";
+  }
+  if (recording.status === "complete") {
+    return "Processing";
+  }
+  if (recording.status === "recording_ended" || recording.status === "uploading") {
+    return "Uploading";
+  }
+  if (recording.status === "recording_started") {
+    return "Recording";
+  }
+  if (recording.status === "pending") {
+    return "Waiting to start";
+  }
+  return "Unknown";
+}
+
+async function openRecording(url) {
+  try {
+    await window.__TAURI__.opener.openUrl(url);
+  } catch (err) {
+    message = err instanceof Error ? err.message : String(err);
+    render();
   }
 }
 
@@ -151,9 +186,11 @@ function render() {
   } else if (phase === "starting-recording") {
     statusEl.textContent = "Starting the recording…";
   } else if (phase === "processing") {
-    statusEl.textContent = "Processing the recording. This finishes when Recall sends the webhook.";
+    statusEl.textContent = currentLabel() || "Processing the recording.";
   } else if (phase === "ready") {
     statusEl.textContent = "Recording is ready.";
+  } else if (phase === "failed") {
+    statusEl.textContent = "The recording failed.";
   } else if (meeting) {
     statusEl.textContent = "Google Meet is open.";
   } else {
@@ -162,22 +199,52 @@ function render() {
 
   meetingEl.textContent = meeting?.url || "";
 
-  const canStart = granted && meeting && (phase === "detected" || phase === "waiting" || phase === "ready");
+  const canStart =
+    granted &&
+    meeting &&
+    (phase === "detected" || phase === "waiting" || phase === "ready" || phase === "failed");
   const canStop = phase === "recording" || phase === "starting-recording";
   startButton.disabled = !canStart;
   stopButton.disabled = !canStop;
 
-  resultEl.replaceChildren();
-  if (downloadUrl) {
-    const link = document.createElement("button");
-    link.type = "button";
-    link.textContent = "Open recording";
-    link.addEventListener("click", () => {
-      const opener = window.__TAURI__?.opener;
-      if (opener?.openUrl) {
-        opener.openUrl(downloadUrl);
-      }
-    });
-    resultEl.append(link);
+  renderRecordings();
+}
+
+function currentLabel() {
+  const current = recordings.find((recording) => recording.uploadId === uploadId);
+  return current ? recordingLabel(current) : "";
+}
+
+function renderRecordings() {
+  recordingsEl.replaceChildren();
+  if (recordingsError) {
+    recordingsEl.append(note(recordingsError));
+    return;
   }
+  if (recordings.length === 0) {
+    recordingsEl.append(note("No recordings yet."));
+    return;
+  }
+
+  for (const recording of recordings) {
+    const item = document.createElement("li");
+    const label = document.createElement("span");
+    label.textContent = `${recordingLabel(recording)} · ${recording.uploadId.slice(0, 8)}`;
+    item.append(label);
+    if (recording.downloadUrl) {
+      const open = document.createElement("button");
+      open.type = "button";
+      open.textContent = "Open";
+      open.addEventListener("click", () => openRecording(recording.downloadUrl));
+      item.append(open);
+    }
+    recordingsEl.append(item);
+  }
+}
+
+function note(text) {
+  const item = document.createElement("li");
+  item.className = "empty";
+  item.textContent = text;
+  return item;
 }

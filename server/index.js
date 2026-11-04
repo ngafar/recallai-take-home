@@ -99,6 +99,27 @@ function listRecordings() {
   return [...recordings.values()].reverse();
 }
 
+// sdk_upload.complete can arrive before the video file is downloadable.
+// The window polls this list, so try again until Recall returns a URL.
+async function fillDownloadUrls() {
+  for (const recording of recordings.values()) {
+    if (recording.downloadUrl || recording.status !== "complete" || !recording.recordingId) {
+      continue;
+    }
+    try {
+      const remote = await getRecording(recording.recordingId);
+      const video = remote.media_shortcuts?.video_mixed;
+      const downloadUrl = video?.data?.download_url || null;
+      remember(recording.uploadId, {
+        videoStatus: video?.status?.code || null,
+        ...(downloadUrl ? { downloadUrl } : {}),
+      });
+    } catch (err) {
+      console.error(err.body || err.message);
+    }
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -141,6 +162,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === "GET" && url.pathname === "/recordings") {
     // The Tauri window is a different origin from this server, so the browser fetch needs this header.
+    await fillDownloadUrls();
     send(res, 200, { recordings: listRecordings() }, { "access-control-allow-origin": "*" });
     return;
   }

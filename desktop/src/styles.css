@@ -21,9 +21,44 @@ h1 {
 }
 
 #status,
-#meeting,
-#result {
+#meeting {
   margin: 0 0 16px;
+}
+
+.recordings {
+  margin-top: 28px;
+}
+
+.recordings h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#recordings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#recordings li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid #d9d9d2;
+}
+
+#recordings li.empty {
+  color: #4d4d4d;
+}
+
+#recordings button {
+  background: transparent;
+  color: #1c1c1c;
 }
 
 #meeting {
@@ -53,19 +88,24 @@ button:disabled {
   cursor: default;
 }
 
-#result button {
-  background: transparent;
-  color: #1c1c1c;
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f4f4f1;
     background: #1c1c1c;
   }
 
-  #meeting {
+  #meeting,
+  #recordings li.empty {
     color: #c8c8c2;
+  }
+
+  #recordings li {
+    border-top-color: #3a3a3a;
+  }
+
+  #recordings button {
+    background: transparent;
+    color: #f4f4f1;
   }
 
   button {
@@ -80,8 +120,4 @@ button:disabled {
     color: #8a8a84;
   }
 
-  #result button {
-    background: transparent;
-    color: #f4f4f1;
-  }
 }

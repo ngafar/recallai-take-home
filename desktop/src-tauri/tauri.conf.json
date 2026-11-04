@@ -12,7 +12,7 @@
       {
         "title": "Meeting recorder",
         "width": 440,
-        "height": 560,
+        "height": 640,
         "resizable": true,
         "center": true
       }
