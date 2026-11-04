@@ -30,7 +30,11 @@ startButton.addEventListener("click", () => {
 });
 
 stopButton.addEventListener("click", () => {
+  phase = "stopping";
+  message = "";
+  render();
   invoke("stop_recording").catch((err) => {
+    phase = "recording";
     message = String(err);
     render();
   });
@@ -79,7 +83,12 @@ function onSdk(payload) {
       }
       break;
     case "meeting-closed":
-      if (meeting?.id === payload.window?.id && phase !== "recording" && phase !== "processing") {
+      if (
+        meeting?.id === payload.window?.id &&
+        phase !== "recording" &&
+        phase !== "stopping" &&
+        phase !== "processing"
+      ) {
         meeting = null;
         phase = "waiting";
       }
@@ -95,11 +104,20 @@ function onSdk(payload) {
       phase = "recording";
       message = "";
       break;
+    case "stop-accepted":
+      phase = "processing";
+      message = "";
+      break;
     case "recording-ended":
       phase = "processing";
       break;
-    case "start-failed":
     case "stop-failed":
+      message = payload.message || "The recorder could not stop.";
+      if (phase === "stopping") {
+        phase = "recording";
+      }
+      break;
+    case "start-failed":
     case "error":
       message = payload.message || "The recorder reported an error.";
       if (phase === "starting-recording") {
@@ -183,10 +201,12 @@ function render() {
     statusEl.textContent = message;
   } else if (phase === "recording") {
     statusEl.textContent = "Recording.";
+  } else if (phase === "stopping") {
+    statusEl.textContent = "Stopping the recording…";
   } else if (phase === "starting-recording") {
     statusEl.textContent = "Starting the recording…";
   } else if (phase === "processing") {
-    statusEl.textContent = currentLabel() || "Processing the recording.";
+    statusEl.textContent = processingLabel();
   } else if (phase === "ready") {
     statusEl.textContent = "Recording is ready.";
   } else if (phase === "failed") {
@@ -215,6 +235,38 @@ function currentLabel() {
   return current ? recordingLabel(current) : "";
 }
 
+function processingLabel() {
+  const label = currentLabel();
+  if (label === "Processing") {
+    return "Processing the recording.";
+  }
+  if (label === "Failed") {
+    return "The recording failed.";
+  }
+  if (label === "Ready") {
+    return "Recording is ready.";
+  }
+  // The webhook can still say "recording" after stop is accepted.
+  return "Uploading the recording.";
+}
+
+function rowLabel(recording) {
+  if (recording.uploadId !== uploadId) {
+    return recordingLabel(recording);
+  }
+  if (phase === "stopping") {
+    return "Stopping";
+  }
+  if (phase === "processing") {
+    const label = recordingLabel(recording);
+    if (label === "Recording" || label === "Waiting to start") {
+      return "Uploading";
+    }
+    return label;
+  }
+  return recordingLabel(recording);
+}
+
 function renderRecordings() {
   recordingsEl.replaceChildren();
   if (recordingsError) {
@@ -229,7 +281,7 @@ function renderRecordings() {
   for (const recording of recordings) {
     const item = document.createElement("li");
     const label = document.createElement("span");
-    label.textContent = `${recordingLabel(recording)} · ${recording.uploadId.slice(0, 8)}`;
+    label.textContent = `${rowLabel(recording)} · ${recording.uploadId.slice(0, 8)}`;
     item.append(label);
     if (recording.downloadUrl) {
       const open = document.createElement("button");
