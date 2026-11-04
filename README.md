@@ -1,6 +1,6 @@
 # Botless Google Meet recorder
 
-This example demonstrates how to record a Google Meet call without having a bot in the meeting.  
+This example demonstrates how to record a Google Meet call without having a bot in the meeting.
 
 ## Prerequisites
 
@@ -70,3 +70,11 @@ npm run tauri dev
 Note that on first launch, you will likely have to give the application permission to access your screen and microphone. This may require a relaunch.
 
 When joining a Google Meet call, the application should detect the call, and allow you to start a recording. 
+
+## What is running
+
+Three processes:
+
+1. Upload server (`server/`) - Holds the Recall API key, creates an upload token, and receives webhooks and stores the download URL.
+2. Node sidecar (`sidecar/`) - Loads `@recallai/desktop-sdk`, asks for macOS permission, and starts or stops the recording. 
+3. Tauri window (`Desktop/`) - Start, Stop, and the link to the finished recording. Spawns the sidecar.
