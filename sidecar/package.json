@@ -1,0 +1,11 @@
+{
+  "name": "recall-sidecar",
+  "private": true,
+  "description": "Node sidecar that loads Recall's Desktop Recording SDK for the Tauri app.",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@recallai/desktop-sdk": "^2.0.0"
+  }
+}
