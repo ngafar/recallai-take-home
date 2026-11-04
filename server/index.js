@@ -17,11 +17,12 @@ function authorizationHeader(key) {
   return key.startsWith("Token ") ? key : `Token ${key}`;
 }
 
-function send(res, status, body) {
+function send(res, status, body, headers = {}) {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     "content-type": "application/json",
     "content-length": Buffer.byteLength(payload),
+    ...headers,
   });
   res.end(payload);
 }
@@ -139,7 +140,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && url.pathname === "/recordings") {
-    send(res, 200, { recordings: listRecordings() });
+    // The Tauri window is a different origin from this server, so the browser fetch needs this header.
+    send(res, 200, { recordings: listRecordings() }, { "access-control-allow-origin": "*" });
     return;
   }
 

@@ -4,6 +4,9 @@ const RecallAiSdk = require("@recallai/desktop-sdk");
 const apiUrl = process.env.RECALL_API_URL || "https://us-west-2.recall.ai";
 const uploadServerUrl = process.env.UPLOAD_SERVER_URL || "http://127.0.0.1:3000";
 
+// The Tauri app sets this. Human-readable logs stay on stderr, and stdout is one JSON object per line.
+const ipc = process.env.SDK_IPC === "1";
+
 const PERMISSIONS = ["accessibility", "microphone", "screen-capture"];
 
 // The latest Meet the SDK can see. Start uses this id; it does not record every detection.
@@ -14,12 +17,27 @@ let recordingWindowId = null;
 let pendingWindowId = null;
 
 function log(event, detail) {
-  console.log(`\n[${new Date().toISOString()}] ${event}`);
+  const write = ipc ? console.error : console.log;
+  write(`\n[${new Date().toISOString()}] ${event}`);
   if (detail !== undefined) {
-    console.log(
-      typeof detail === "string" ? detail : JSON.stringify(detail, null, 2),
-    );
+    write(typeof detail === "string" ? detail : JSON.stringify(detail, null, 2));
   }
+}
+
+function publish(payload) {
+  if (!ipc) {
+    return;
+  }
+  process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
+function publicWindow(meetingWindow) {
+  return {
+    id: meetingWindow.id,
+    url: meetingWindow.url || null,
+    title: meetingWindow.title || null,
+    platform: meetingWindow.platform || null,
+  };
 }
 
 RecallAiSdk.addEventListener("permission-status", (evt) => {
@@ -27,9 +45,15 @@ RecallAiSdk.addEventListener("permission-status", (evt) => {
     permission: evt.permission,
     status: evt.status,
   });
+  publish({
+    event: "permission-status",
+    permission: evt.permission,
+    status: evt.status,
+  });
 
   if (evt.status === "denied") {
-    console.log(
+    log(
+      "permission-denied",
       `macOS will not prompt again for "${evt.permission}". Enable it for the terminal or node in System Settings → Privacy & Security, then restart this script.`,
     );
   }
@@ -40,12 +64,14 @@ RecallAiSdk.addEventListener("permissions-granted", () => {
     "permissions-granted",
     "Every permission requested at startup is granted. Meeting detection can run.",
   );
+  publish({ event: "permissions-granted" });
 });
 
 RecallAiSdk.addEventListener("meeting-detected", (evt) => {
   detectedWindow = evt.window;
   log("meeting-detected", evt.window);
-  console.log('Type "start" to record this meeting.');
+  publish({ event: "meeting-detected", window: publicWindow(evt.window) });
+  log("hint", 'Type "start" to record this meeting.');
 });
 
 RecallAiSdk.addEventListener("meeting-updated", (evt) => {
@@ -53,10 +79,12 @@ RecallAiSdk.addEventListener("meeting-updated", (evt) => {
     detectedWindow = evt.window;
   }
   log("meeting-updated", evt.window);
+  publish({ event: "meeting-updated", window: publicWindow(evt.window) });
 });
 
 RecallAiSdk.addEventListener("meeting-closed", (evt) => {
   log("meeting-closed", evt.window);
+  publish({ event: "meeting-closed", window: publicWindow(evt.window) });
   if (detectedWindow?.id === evt.window.id) {
     detectedWindow = null;
   }
@@ -69,7 +97,12 @@ RecallAiSdk.addEventListener("recording-started", (evt) => {
     windowId: evt.window.id,
     rawMedia: evt.rawMedia,
   });
-  console.log('Type "stop" to end the recording.');
+  publish({
+    event: "recording-started",
+    windowId: evt.window.id,
+    rawMedia: evt.rawMedia,
+  });
+  log("hint", 'Type "stop" to end the recording.');
 });
 
 RecallAiSdk.addEventListener("recording-ended", (evt) => {
@@ -77,15 +110,18 @@ RecallAiSdk.addEventListener("recording-ended", (evt) => {
     recordingWindowId = null;
   }
   log("recording-ended", { windowId: evt.window.id });
-  console.log("Capture has stopped. The file is not ready until Recall finishes processing the upload.");
+  publish({ event: "recording-ended", windowId: evt.window.id });
+  log("hint", "Capture has stopped. The file is not ready until Recall finishes processing the upload.");
 });
 
 RecallAiSdk.addEventListener("error", (evt) => {
-  log("error", {
+  const detail = {
     type: evt.type,
     message: evt.message,
     windowId: evt.window?.id,
-  });
+  };
+  log("error", detail);
+  publish({ event: "error", ...detail });
   if (pendingWindowId && (!evt.window?.id || evt.window.id === pendingWindowId)) {
     pendingWindowId = null;
   }
@@ -105,6 +141,7 @@ async function main() {
     "waiting",
     `Join a Google Meet in Chrome or Safari. Commands: start, stop. Upload server: ${uploadServerUrl}`,
   );
+  publish({ event: "ready" });
   watchCommands();
 }
 
@@ -128,14 +165,17 @@ async function startCapture() {
     }
 
     log("upload-created", { id: body.id, status: body.status });
+    publish({ event: "upload-created", id: body.id, status: body.status });
     await RecallAiSdk.startRecording({
       windowId,
       uploadToken: body.upload_token,
     });
     log("start-accepted", { windowId, uploadId: body.id });
+    publish({ event: "start-accepted", windowId, uploadId: body.id });
   } catch (err) {
     pendingWindowId = null;
     log("start-failed", err.message);
+    publish({ event: "start-failed", message: err.message });
   }
 }
 
@@ -149,34 +189,64 @@ async function stopCapture() {
   try {
     await RecallAiSdk.stopRecording({ windowId });
     log("stop-accepted", { windowId });
+    publish({ event: "stop-accepted", windowId });
   } catch (err) {
     log("stop-failed", err.message);
+    publish({ event: "stop-failed", message: err.message });
   }
 }
 
 function watchCommands() {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
-    prompt: "> ",
+    output: ipc ? process.stderr : process.stdout,
+    terminal: ipc ? false : process.stdin.isTTY,
+    prompt: ipc ? "" : "> ",
   });
-  rl.prompt();
+  if (!ipc) {
+    rl.prompt();
+  }
 
   rl.on("line", (line) => {
-    const command = line.trim().toLowerCase();
-    const action =
-      command === "start"
-        ? startCapture()
-        : command === "stop"
-          ? stopCapture()
-          : Promise.resolve().then(() => console.log("Commands: start, stop"));
-
-    action.finally(() => rl.prompt());
+    const action = runCommand(line);
+    if (!ipc) {
+      Promise.resolve(action).finally(() => rl.prompt());
+    }
   });
 
   rl.on("SIGINT", () => {
     shutdown();
   });
+}
+
+function runCommand(line) {
+  const trimmed = line.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  let command = trimmed.toLowerCase();
+  if (trimmed.startsWith("{")) {
+    try {
+      command = String(JSON.parse(trimmed).command || "").toLowerCase();
+    } catch {
+      log("command", 'Expected {"command":"start"}, {"command":"stop"}, or the words start and stop.');
+      return undefined;
+    }
+  }
+
+  if (command === "start") {
+    return startCapture();
+  }
+  if (command === "stop") {
+    return stopCapture();
+  }
+  if (command === "shutdown") {
+    return shutdown();
+  }
+
+  log("command", "Commands: start, stop");
+  return undefined;
 }
 
 let shuttingDown = false;

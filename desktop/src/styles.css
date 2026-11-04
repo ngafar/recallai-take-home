@@ -1,0 +1,87 @@
+:root {
+  color: #1c1c1c;
+  background: #f4f4f1;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  padding: 28px 24px;
+}
+
+h1 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+#status,
+#meeting,
+#result {
+  margin: 0 0 16px;
+}
+
+#meeting {
+  color: #4d4d4d;
+  word-break: break-all;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+button {
+  border: 1px solid #1c1c1c;
+  border-radius: 6px;
+  background: #1c1c1c;
+  color: #f4f4f1;
+  font: inherit;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+button:disabled {
+  border-color: #c8c8c2;
+  background: #e6e6e1;
+  color: #8a8a84;
+  cursor: default;
+}
+
+#result button {
+  background: transparent;
+  color: #1c1c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #f4f4f1;
+    background: #1c1c1c;
+  }
+
+  #meeting {
+    color: #c8c8c2;
+  }
+
+  button {
+    border-color: #f4f4f1;
+    background: #f4f4f1;
+    color: #1c1c1c;
+  }
+
+  button:disabled {
+    border-color: #3a3a3a;
+    background: #2a2a2a;
+    color: #8a8a84;
+  }
+
+  #result button {
+    background: transparent;
+    color: #f4f4f1;
+  }
+}
