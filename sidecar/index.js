@@ -71,7 +71,9 @@ RecallAiSdk.addEventListener("meeting-detected", (evt) => {
   detectedWindow = evt.window;
   log("meeting-detected", evt.window);
   publish({ event: "meeting-detected", window: publicWindow(evt.window) });
-  log("hint", 'Type "start" to record this meeting.');
+  if (!ipc) {
+    log("hint", 'Type "start" to record this meeting.');
+  }
 });
 
 RecallAiSdk.addEventListener("meeting-updated", (evt) => {
@@ -102,7 +104,9 @@ RecallAiSdk.addEventListener("recording-started", (evt) => {
     windowId: evt.window.id,
     rawMedia: evt.rawMedia,
   });
-  log("hint", 'Type "stop" to end the recording.');
+  if (!ipc) {
+    log("hint", 'Type "stop" to end the recording.');
+  }
 });
 
 RecallAiSdk.addEventListener("recording-ended", (evt) => {
@@ -111,7 +115,9 @@ RecallAiSdk.addEventListener("recording-ended", (evt) => {
   }
   log("recording-ended", { windowId: evt.window.id });
   publish({ event: "recording-ended", windowId: evt.window.id });
-  log("hint", "Capture has stopped. The file is not ready until Recall finishes processing the upload.");
+  if (!ipc) {
+    log("hint", "Capture has stopped. The file is not ready until Recall finishes processing the upload.");
+  }
 });
 
 RecallAiSdk.addEventListener("error", (evt) => {
