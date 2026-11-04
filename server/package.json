@@ -1,0 +1,8 @@
+{
+  "name": "recall-server",
+  "private": true,
+  "description": "Local backend that creates Recall Desktop SDK uploads. The API key stays here.",
+  "scripts": {
+    "start": "node index.js"
+  }
+}
