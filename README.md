@@ -52,14 +52,7 @@ ngrok should now display a forwarding address. In the Recall dashboard for the s
 https://<ngrok-host>/webhook
 ```
 
-Dashboards:
-
-- Pay-as-you-go, `us-west-2`: https://us-west-2.recall.ai/dashboard/webhooks
-- Monthly, `us-east-1`: https://us-east-1.recall.ai/dashboard/webhooks
-- EU: https://eu-central-1.recall.ai/dashboard/webhooks
-- Japan: https://ap-northeast-1.recall.ai/dashboard/webhooks
-
-Subscribe to these events:
+Before saving, subscribe to these events:
 
 - `sdk_upload.complete`
 - `sdk_upload.failed`
