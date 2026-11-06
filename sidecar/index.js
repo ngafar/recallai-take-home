@@ -1,6 +1,17 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const readline = require("node:readline");
+
+// The Tauri app sets this. Human-readable logs stay on stderr, and stdout is one JSON object per line.
+const ipc = process.env.SDK_IPC === "1";
+
+// The SDK logs with console.log, which writes to stdout. In IPC mode that stream is the event
+// channel, so move those logs to stderr before the SDK is loaded.
+if (ipc) {
+  console.log = (...args) => console.error(...args);
+  console.info = (...args) => console.error(...args);
+}
+
 const RecallAiSdk = require("@recallai/desktop-sdk");
 
 // Read the region only. Loading the whole server env would pull the API key into this process.
@@ -10,9 +21,6 @@ const apiUrl = (
   "https://us-west-2.recall.ai"
 ).replace(/\/$/, "");
 const uploadServerUrl = process.env.UPLOAD_SERVER_URL || "http://127.0.0.1:3000";
-
-// The Tauri app sets this. Human-readable logs stay on stderr, and stdout is one JSON object per line.
-const ipc = process.env.SDK_IPC === "1";
 
 const PERMISSIONS = ["accessibility", "microphone", "screen-capture"];
 
