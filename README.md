@@ -30,7 +30,13 @@ Copy the sample env file in `server/`:
 cp server/.env.example server/.env
 ```
 
-Next open the newly created `server/.env` and add your `RECALL_API_KEY` and `RECALL_WEBHOOK_SECRET`. Both of these can be found in the Recall.ai dashboard, under Developers > API Keys.  
+Next open the newly created `server/.env` and set:
+
+- `RECALL_API_URL` to the region your workspace lives in. The sidecar reads this same value. An upload token from one region will not record against another.
+- `RECALL_API_KEY` from Developers > API Keys in that region's dashboard.
+- `RECALL_WEBHOOK_SECRET`, which depends on when the workspace was created. Both secrets start with `whsec_`.
+  - On or after December 15, 2025: the workspace verification secret on the API keys page.
+  - Before that date: create the endpoint in the next step, then copy the signing secret shown on that endpoint. Dashboard webhooks on older workspaces are signed with the endpoint secret, not the workspace verification secret.
 
 ### 3. Start ngrok
 
@@ -40,13 +46,27 @@ From the terminal, run:
 ngrok http 3000
 ```
 
-ngrok should now display a forwarding address. In the Recall.ai dashboard, add a new webhook endpoint:
+ngrok should now display a forwarding address. In the Recall dashboard for the same region as `RECALL_API_URL`, add a webhook endpoint:
 
 ```
 https://<ngrok-host>/webhook
 ```
 
-Before saving, subscribe to the `sdk_upload` events. 
+Dashboards:
+
+- Pay-as-you-go, `us-west-2`: https://us-west-2.recall.ai/dashboard/webhooks
+- Monthly, `us-east-1`: https://us-east-1.recall.ai/dashboard/webhooks
+- EU: https://eu-central-1.recall.ai/dashboard/webhooks
+- Japan: https://ap-northeast-1.recall.ai/dashboard/webhooks
+
+Subscribe to these events:
+
+- `sdk_upload.complete`
+- `sdk_upload.failed`
+- `sdk_upload.recording_started`
+- `sdk_upload.recording_ended`
+
+`sdk_upload.complete` is the event that makes the file available. There is no single "`sdk_upload` events" subscription. If the secret does not match the signature, the server logs `rejected webhook` and the recording never leaves Uploading.
 
 Keep this terminal window and ngrok running. 
 
