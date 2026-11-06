@@ -12,6 +12,9 @@ const webhookSecret = process.env.RECALL_WEBHOOK_SECRET;
 
 // Uploads this process has created or heard about. Restarting the server clears it.
 const recordings = new Map();
+// Set when a webhook is rejected, cleared when the next one verifies. The window shows this
+// while it is waiting on a file, so a bad secret does not look like a slow upload.
+let webhookError = "";
 
 function authorizationHeader(key) {
   return key.startsWith("Token ") ? key : `Token ${key}`;
@@ -163,7 +166,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/recordings") {
     // The Tauri window is a different origin from this server, so the browser fetch needs this header.
     await fillDownloadUrls();
-    send(res, 200, { recordings: listRecordings() }, { "access-control-allow-origin": "*" });
+    send(
+      res,
+      200,
+      { recordings: listRecordings(), webhookError },
+      { "access-control-allow-origin": "*" },
+    );
     return;
   }
 
@@ -176,7 +184,9 @@ const server = http.createServer(async (req, res) => {
 
     try {
       verifyWebhook(webhookSecret, headers, rawBody);
+      webhookError = "";
     } catch (err) {
+      webhookError = err.message;
       console.error(`rejected webhook: ${err.message}`);
       send(res, 400, { error: err.message });
       return;

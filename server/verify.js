@@ -38,7 +38,9 @@ function verifyWebhook(secret, headers, rawBody) {
   });
 
   if (!matches) {
-    throw new Error("Webhook signature does not match");
+    throw new Error(
+      "Webhook signature does not match. Use the workspace verification secret for workspaces created on or after December 15, 2025, or the signing secret shown on the webhook endpoint for older workspaces.",
+    );
   }
 }
 

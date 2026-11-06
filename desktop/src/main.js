@@ -17,6 +17,7 @@ let uploadId = null;
 let recordings = [];
 let recordingsError = "";
 let message = "";
+let webhookMessage = "";
 
 startButton.addEventListener("click", () => {
   phase = "starting-recording";
@@ -141,6 +142,15 @@ async function refreshRecordings() {
     const body = await response.json();
     recordings = body.recordings || [];
     recordingsError = "";
+    if (phase === "processing" || phase === "stopping") {
+      if (body.webhookError) {
+        webhookMessage = body.webhookError;
+        message = body.webhookError;
+      } else if (webhookMessage && message === webhookMessage) {
+        webhookMessage = "";
+        message = "";
+      }
+    }
     const current = recordings.find((recording) => recording.uploadId === uploadId);
     if (current?.downloadUrl) {
       phase = "ready";

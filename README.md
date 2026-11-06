@@ -66,7 +66,7 @@ Subscribe to these events:
 - `sdk_upload.recording_started`
 - `sdk_upload.recording_ended`
 
-`sdk_upload.complete` is the event that makes the file available. There is no single "`sdk_upload` events" subscription. If the secret does not match the signature, the server logs `rejected webhook` and the recording never leaves Uploading.
+`sdk_upload.complete` is the event that makes the file available. There is no single "`sdk_upload` events" subscription. If the secret does not match the signature, the server logs `rejected webhook` and the window shows that error instead of staying on Uploading.
 
 Keep this terminal window and ngrok running. 
 
