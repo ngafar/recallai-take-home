@@ -30,6 +30,8 @@ let detectedWindow = null;
 // startRecording() resolving only means the command was accepted, so pendingWindowId covers the gap before recording-started.
 let recordingWindowId = null;
 let pendingWindowId = null;
+// The upload created for the recording that is still in flight. Cleared once Recall has a file, or the upload fails.
+let activeUploadId = null;
 
 function log(event, detail) {
   const write = ipc ? console.error : console.log;
@@ -187,6 +189,7 @@ async function startCapture() {
 
     log("upload-created", { id: body.id, status: body.status });
     publish({ event: "upload-created", id: body.id, status: body.status });
+    activeUploadId = body.id;
     await RecallAiSdk.startRecording({
       windowId,
       uploadToken: body.upload_token,
@@ -195,6 +198,7 @@ async function startCapture() {
     publish({ event: "start-accepted", windowId, uploadId: body.id });
   } catch (err) {
     pendingWindowId = null;
+    activeUploadId = null;
     log("start-failed", err.message);
     publish({ event: "start-failed", message: err.message });
   }
@@ -272,6 +276,40 @@ function runCommand(line) {
 
 let shuttingDown = false;
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// recording-ended can arrive a few minutes after stopRecording returns.
+async function waitForCaptureEnd(timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while ((recordingWindowId || pendingWindowId) && Date.now() < deadline) {
+    await delay(200);
+  }
+}
+
+// sdk_upload.complete is what means the file exists. shutdown() does not wait for that,
+// and the SDK then force-exits its native process, which can drop a local upload.
+async function waitForUpload(uploadId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${uploadServerUrl}/recordings`);
+      if (response.ok) {
+        const body = await response.json();
+        const found = (body.recordings || []).find((item) => item.uploadId === uploadId);
+        if (found?.downloadUrl || found?.status === "failed") {
+          activeUploadId = null;
+          return;
+        }
+      }
+    } catch {
+      // The upload server may already be stopped. Keep waiting until the timeout.
+    }
+    await delay(1000);
+  }
+}
+
 async function shutdown() {
   if (shuttingDown) {
     return;
@@ -282,10 +320,20 @@ async function shutdown() {
     const windowId = recordingWindowId || pendingWindowId;
     if (windowId) {
       log("shutdown", "Stopping the active recording before the SDK exits.");
-      await RecallAiSdk.stopRecording({ windowId });
-    } else {
-      log("shutdown", "Stopping the SDK.");
+      try {
+        await RecallAiSdk.stopRecording({ windowId });
+      } catch (err) {
+        log("shutdown", err.message);
+      }
+      await waitForCaptureEnd(5 * 60 * 1000);
     }
+
+    if (activeUploadId) {
+      log("shutdown", "Waiting for the upload to finish before shutting down the SDK.");
+      await waitForUpload(activeUploadId, 3 * 60 * 1000);
+    }
+
+    log("shutdown", "Stopping the SDK.");
     await RecallAiSdk.shutdown();
   } catch (err) {
     console.error(err);

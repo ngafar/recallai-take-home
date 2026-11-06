@@ -99,12 +99,15 @@ fn stop_sidecar(sidecar: &Sidecar) {
     let Ok(mut child) = sidecar.child.lock() else {
         return;
     };
-    let deadline = Instant::now() + Duration::from_secs(3);
+    // The sidecar waits out recording-ended (up to 5 minutes) and then the upload
+    // webhook before it calls SDK shutdown. Killing it sooner can drop the file.
+    let deadline = Instant::now() + Duration::from_secs(9 * 60);
     loop {
         match child.try_wait() {
             Ok(Some(_)) => return,
             Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
             _ => {
+                eprintln!("Sidecar did not exit after waiting for the upload. Killing it.");
                 let _ = child.kill();
                 let _ = child.wait();
                 return;
