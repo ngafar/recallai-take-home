@@ -96,5 +96,5 @@ When joining a Google Meet call, the application should detect the call, and all
 Three processes:
 
 1. **Upload server** (`server/`) - Holds the Recall API key, creates an upload token, and receives webhooks and stores the download URL.
-2. **Node sidecar** (`sidecar/`) - Loads `@recallai/desktop-sdk`, asks for macOS permission, and starts or stops the recording. 
-3. **Tauri window** (`desktop/`) - Start, Stop, and the link to the finished recording. Spawns the sidecar.
+2. **Node sidecar** (`sidecar/`) - Loads `@recallai/desktop-sdk`, asks for macOS permissions, and starts or stops the recording. Stdout is reserved for JSON events. The SDK's own logs are sent to stderr.
+3. **Tauri window** (`desktop/`) - Start, Stop, and the link to the finished recording. Spawns the sidecar and keeps the process until the upload has finished or the shutdown wait runs out.
