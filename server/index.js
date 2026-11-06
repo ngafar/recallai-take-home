@@ -93,7 +93,13 @@ async function getRecording(recordingId) {
 
 function remember(uploadId, patch) {
   const current = recordings.get(uploadId) || { uploadId };
-  const next = { ...current, ...patch, uploadId };
+  const defined = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (value !== undefined) {
+      defined[key] = value;
+    }
+  }
+  const next = { ...current, ...defined, uploadId };
   recordings.set(uploadId, next);
   return next;
 }
