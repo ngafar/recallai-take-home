@@ -1,7 +1,14 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const readline = require("node:readline");
 const RecallAiSdk = require("@recallai/desktop-sdk");
 
-const apiUrl = process.env.RECALL_API_URL || "https://us-west-2.recall.ai";
+// Read the region only. Loading the whole server env would pull the API key into this process.
+const apiUrl = (
+  process.env.RECALL_API_URL ||
+  readEnvValue(path.join(__dirname, "../server/.env"), "RECALL_API_URL") ||
+  "https://us-west-2.recall.ai"
+).replace(/\/$/, "");
 const uploadServerUrl = process.env.UPLOAD_SERVER_URL || "http://127.0.0.1:3000";
 
 // The Tauri app sets this. Human-readable logs stay on stderr, and stdout is one JSON object per line.
@@ -277,6 +284,37 @@ async function shutdown() {
   } finally {
     process.exit(0);
   }
+}
+
+function readEnvValue(file, name) {
+  if (!fs.existsSync(file)) {
+    return undefined;
+  }
+
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) {
+      continue;
+    }
+    if (trimmed.slice(0, separator).trim() !== name) {
+      continue;
+    }
+    let value = trimmed.slice(separator + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    return value || undefined;
+  }
+
+  return undefined;
 }
 
 process.on("SIGINT", () => {
