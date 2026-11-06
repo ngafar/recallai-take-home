@@ -76,6 +76,11 @@ function onSdk(payload) {
     case "permission-status":
       permissions[payload.permission] = payload.status;
       break;
+    case "permissions-granted":
+      for (const permission of REQUIRED_PERMISSIONS) {
+        permissions[permission] = "granted";
+      }
+      break;
     case "meeting-detected":
     case "meeting-updated":
       meeting = payload.window;
